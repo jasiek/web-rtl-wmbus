@@ -289,3 +289,19 @@ footer {
   color: var(--muted);
   font-size: 0.8rem;
 }
+
+.gh-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.gh-link:hover {
+  color: var(--accent);
+}
+
+.gh-link svg {
+  display: block;
+}
