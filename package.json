@@ -1,0 +1,23 @@
+{
+  "name": "web-rtl-wmbus",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Browser wireless M-Bus receiver: RTL-SDR over WebUSB -> rtl-wmbus -> wmbusmeters, all client-side.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "setup:wasm": "bash native/setup.sh",
+    "build:wasm": "bash native/build-rtl-wmbus.sh && bash native/build-wmbusmeters.sh",
+    "test:wasm": "node native/test-rtl-wmbus.mjs && node native/test-wmbusmeters.mjs && node native/test-pipeline.mjs"
+  },
+  "dependencies": {
+    "@jtarrio/webrtlsdr": "^0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.local
+.DS_Store
+.vite/
+
+# Emscripten toolchain (cloned by native/setup-emsdk.sh)
+native/emsdk/
+
+# Vendored upstream C/C++ sources (cloned by native build scripts)
+native/rtl-wmbus/
+native/wmbusmeters/
