@@ -36,7 +36,9 @@ Once connected the app streams IQ samples and populates two live tables:
   it was received on (e.g. 868.950 MHz, or the specific 169 MHz N-mode channel),
   decoded reading, and a status badge (`decoded`, `decrypted (0x0)`,
   `recognized`, `encrypted`).
-- **Telegrams** — the raw demodulated frames (mode, CRC, RSSI, hex).
+- **Telegrams** — the raw demodulated frames (mode, CRC, RSSI, hex), each with a
+  padlock showing whether it could be read: 🔓 read · 🔑 decrypted with `0x0` ·
+  🔒 encrypted (unread) · 🚫 CRC failed.
 
 ### Bands / modes
 

@@ -1,4 +1,6 @@
 import type { Telegram } from "../telegram.ts";
+import type { DecodeStatus } from "../worker/decoder.ts";
+import { lockBadge } from "./lock-badge.ts";
 
 /** Aggregated view of all telegrams seen from one meter serial. */
 type MeterRow = {
@@ -9,6 +11,8 @@ type MeterRow = {
   lastRssi: number;
   lastSeen: number;
   lastHex: string;
+  /** Latest decode/decrypt outcome for this serial, once known. */
+  status?: DecodeStatus;
 };
 
 /**
@@ -48,6 +52,15 @@ export class TelegramTable {
     this.render();
   }
 
+  /** Records the decode/decrypt outcome for a serial (drives the padlock). */
+  setStatus(serial: string, status: DecodeStatus): void {
+    const row = this.rows.get(serial);
+    if (row) {
+      row.status = status;
+      this.render();
+    }
+  }
+
   reset(): void {
     this.rows.clear();
     this.total = 0;
@@ -59,7 +72,7 @@ export class TelegramTable {
 
     if (this.rows.size === 0) {
       this.tbody.innerHTML =
-        '<tr class="empty-row"><td colspan="7">No telegrams yet. Connect and wait for nearby meters…</td></tr>';
+        '<tr class="empty-row"><td colspan="8">No telegrams yet. Connect and wait for nearby meters…</td></tr>';
       return;
     }
 
@@ -75,8 +88,13 @@ export class TelegramTable {
     const crc = `${r.crcOkCount}/${r.count}`;
     const hexShort =
       r.lastHex.length > 48 ? r.lastHex.slice(0, 48) + "…" : r.lastHex;
+    const lock =
+      r.status === undefined && r.crcOkCount === 0
+        ? { emoji: "🚫", title: "CRC failed — cannot read" }
+        : lockBadge(r.status);
     cells(tr, [
       { text: r.serial, cls: "mono" },
+      { text: lock.emoji, cls: "lock", title: lock.title },
       { text: r.mode },
       { text: String(r.count) },
       { text: crc, cls: r.crcOkCount > 0 ? "ok" : "warn" },

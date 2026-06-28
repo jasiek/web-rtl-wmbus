@@ -247,6 +247,10 @@ tbody tr:hover td {
 td.mono {
   font-family: var(--mono);
 }
+td.lock {
+  text-align: center;
+  cursor: default;
+}
 td.hex {
   max-width: 320px;
   overflow: hidden;

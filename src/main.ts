@@ -83,6 +83,7 @@ worker.addEventListener("message", (ev: MessageEvent<FromWorker>) => {
       break;
     case "meter":
       meterTable.add(msg.result);
+      telegramTable.setStatus(msg.result.serial, msg.result.status);
       if (msg.result.reading) {
         log(
           `Meter ${msg.result.reading.id} (${msg.result.reading.meter ?? "?"}) — ${msg.result.status}.`,
