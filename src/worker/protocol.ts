@@ -2,11 +2,19 @@ import type { Telegram } from "../telegram.ts";
 import type { MeterReading } from "../meter.ts";
 import type { DecodeStatus } from "./decoder.ts";
 
+/** rtl-wmbus demodulator parameters derived from the selected band preset. */
+export type DemodParams = {
+  /** rtl-wmbus -d (sample rate = decimation * 800 kHz). */
+  decimation: number;
+  /** rtl-wmbus -s (receive S1 + T1/C1 together at 868.625 MHz). */
+  simultaneous: boolean;
+};
+
 /** Messages sent from the main thread to the DSP worker. */
 export type ToWorker =
-  | { type: "init" }
+  | { type: "init"; params: DemodParams }
   | { type: "samples"; data: ArrayBuffer }
-  | { type: "reset" };
+  | { type: "reset"; params: DemodParams };
 
 /** A decoded meter result for one telegram. */
 export type MeterResult = {

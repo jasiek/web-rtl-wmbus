@@ -2,8 +2,14 @@
 // MODULARIZE). Built by native/build-rtl-wmbus.sh.
 
 export interface RtlWmbusModule {
-  /** Initializes options and resets the demodulator state. Call once. */
-  _rtlwmbus_init(): void;
+  /**
+   * Initializes options and resets the demodulator state.
+   * @param decimationRate rtl-wmbus -d; sample rate = decimationRate * 800 kHz
+   *   (2 => 1.6 Msps, 3 => 2.4 Msps).
+   * @param simultaneous rtl-wmbus -s; 1 to receive S1 + T1/C1 together with the
+   *   SDR tuned to 868.625 MHz, 0 for a single band at its own center.
+   */
+  _rtlwmbus_init(decimationRate: number, simultaneous: number): void;
   /** Runs `len` bytes of interleaved cu8 samples through the demodulator. */
   _rtlwmbus_feed(ptr: number, len: number): void;
   _malloc(size: number): number;

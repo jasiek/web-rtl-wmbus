@@ -26,11 +26,14 @@
           <span id="status" class="status" data-state="idle">Idle</span>
         </div>
 
+        <div class="row band-row">
+          <label class="band-label" for="band-select">Band / mode</label>
+          <select id="band-select"></select>
+          <span class="flags" id="band-flags" title="Countries/regions where this band is typical"></span>
+        </div>
+        <p class="band-note" id="band-note" hidden></p>
+
         <div class="row meters-row">
-          <div class="stat">
-            <span class="stat-label">Center</span>
-            <span class="stat-value" id="stat-freq">868.950 MHz</span>
-          </div>
           <div class="stat">
             <span class="stat-label">Sample rate</span>
             <span class="stat-value" id="stat-rate">&mdash;</span>

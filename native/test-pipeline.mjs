@@ -12,7 +12,7 @@ const WASM = join(here, "..", "src", "wasm");
 const { default: createRtlWmbus } = await import(join(WASM, "rtl_wmbus.js"));
 const lines = [];
 const rwm = await createRtlWmbus({ print: (l) => lines.push(l), printErr: () => {} });
-rwm._rtlwmbus_init();
+rwm._rtlwmbus_init(2, 0);
 const samples = readFileSync(
   join(here, "rtl-wmbus", "samples", "rtlsdr_868.950M_1M6_samples2.cu8"),
 );

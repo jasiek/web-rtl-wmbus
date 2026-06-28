@@ -21,7 +21,7 @@ const Module = await createRtlWmbus({
   printErr: (line) => console.error("[stderr]", line),
 });
 
-Module._rtlwmbus_init();
+Module._rtlwmbus_init(2, 0);
 
 const samples = readFileSync(samplePath);
 console.log(`Feeding ${samples.length} bytes from ${samplePath}`);

@@ -1,11 +1,9 @@
 import "./style.css";
-import {
-  WmbusSdr,
-  averageSignalLevel,
-  WMBUS_CENTER_HZ,
-} from "./sdr/device.ts";
+import { WmbusSdr, averageSignalLevel } from "./sdr/device.ts";
 import { TelegramTable } from "./ui/telegram-table.ts";
 import { MeterTable } from "./ui/meter-table.ts";
+import { BandSelector } from "./ui/band-selector.ts";
+import { DEFAULT_PRESET } from "./presets.ts";
 import type { FromWorker, ToWorker } from "./worker/protocol.ts";
 
 type StatusState = "idle" | "connecting" | "running" | "error";
@@ -14,7 +12,9 @@ const els = {
   connectBtn: byId<HTMLButtonElement>("connect-btn"),
   stopBtn: byId<HTMLButtonElement>("stop-btn"),
   status: byId<HTMLSpanElement>("status"),
-  statFreq: byId<HTMLSpanElement>("stat-freq"),
+  bandSelect: byId<HTMLSelectElement>("band-select"),
+  bandFlags: byId<HTMLSpanElement>("band-flags"),
+  bandNote: byId<HTMLParagraphElement>("band-note"),
   statRate: byId<HTMLSpanElement>("stat-rate"),
   statThroughput: byId<HTMLSpanElement>("stat-throughput"),
   statSignal: byId<HTMLSpanElement>("stat-signal"),
@@ -46,6 +46,17 @@ function log(message: string): void {
 const sdr = new WmbusSdr();
 const telegramTable = new TelegramTable(els.telegramTbody, els.telegramCounter);
 const meterTable = new MeterTable(els.meterTbody, els.meterCounter);
+const bandSelector = new BandSelector(
+  els.bandSelect,
+  els.bandFlags,
+  els.bandNote,
+  (preset) => {
+    els.connectBtn.disabled = !preset.supported;
+    if (!preset.supported) {
+      log(`${preset.label}: ${preset.note ?? "not supported."}`);
+    }
+  },
+);
 
 // DSP worker: runs the rtl-wmbus WASM demodulator off the main thread.
 const worker = new Worker(new URL("./worker/dsp.ts", import.meta.url), {
@@ -92,7 +103,13 @@ function toWorker(msg: ToWorker, transfer?: Transferable[]): void {
 }
 
 // Initialize the demodulator up front so it is ready by the time we connect.
-toWorker({ type: "init" });
+toWorker({
+  type: "init",
+  params: {
+    decimation: DEFAULT_PRESET.decimation,
+    simultaneous: DEFAULT_PRESET.simultaneous,
+  },
+});
 
 // Throughput / signal accounting, sampled once a second.
 let bytesSinceTick = 0;
@@ -131,18 +148,32 @@ async function handleConnect(): Promise<void> {
     return;
   }
 
+  const preset = bandSelector.preset;
+  if (!preset.supported) {
+    log(`${preset.label}: ${preset.note ?? "not supported."}`);
+    return;
+  }
+
   els.connectBtn.disabled = true;
+  bandSelector.setEnabled(false);
   setStatus("connecting", "Connecting…");
-  log("Requesting RTL-SDR device…");
+  log(`Requesting RTL-SDR device for ${preset.label}…`);
 
   try {
-    await sdr.connect();
+    await sdr.connect({
+      centerFrequencyHz: preset.centerHz,
+      sampleRate: preset.sampleRate,
+    });
     const rate = sdr.actualSampleRate;
     els.statRate.textContent = `${(rate / 1e6).toFixed(3)} Msps`;
-    els.statFreq.textContent = `${(WMBUS_CENTER_HZ / 1e6).toFixed(3)} MHz`;
-    log(`Connected. Tuned to 868.950 MHz at ${(rate / 1e6).toFixed(3)} Msps.`);
+    log(
+      `Connected. Tuned to ${(preset.centerHz / 1e6).toFixed(3)} MHz (${preset.mode}) at ${(rate / 1e6).toFixed(3)} Msps.`,
+    );
 
-    toWorker({ type: "reset" });
+    toWorker({
+      type: "reset",
+      params: { decimation: preset.decimation, simultaneous: preset.simultaneous },
+    });
     meterTable.reset();
     telegramTable.reset();
     sdr.start(onSamples);
@@ -152,6 +183,7 @@ async function handleConnect(): Promise<void> {
   } catch (err) {
     setStatus("error", "Error");
     els.connectBtn.disabled = false;
+    bandSelector.setEnabled(true);
     const msg = err instanceof Error ? err.message : String(err);
     log(`Connection failed: ${msg}`);
   }
@@ -167,6 +199,7 @@ async function handleStop(): Promise<void> {
   }
   setStatus("idle", "Idle");
   els.connectBtn.disabled = false;
+  bandSelector.setEnabled(true);
   els.statThroughput.textContent = "—";
   els.statSignal.textContent = "—";
   els.signalFill.style.width = "0%";

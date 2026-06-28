@@ -12,7 +12,7 @@ import createRtlWmbus, {
 } from "../wasm/rtl_wmbus.js";
 import { parseTelegramLine, type Telegram } from "../telegram.ts";
 import { decodeTelegram } from "./decoder.ts";
-import type { FromWorker, ToWorker } from "./protocol.ts";
+import type { DemodParams, FromWorker, ToWorker } from "./protocol.ts";
 
 let mod: RtlWmbusModule | undefined;
 let heapPtr = 0;
@@ -72,7 +72,7 @@ async function drainQueue(): Promise<void> {
   }
 }
 
-async function init(): Promise<void> {
+async function init(params: DemodParams): Promise<void> {
   mod = await createRtlWmbus({
     print: (line) => {
       const telegram = parseTelegramLine(line);
@@ -84,7 +84,7 @@ async function init(): Promise<void> {
     },
     printErr: (line) => post({ type: "stderr", line }),
   });
-  mod._rtlwmbus_init();
+  mod._rtlwmbus_init(params.decimation, params.simultaneous ? 1 : 0);
   post({ type: "ready" });
 }
 
@@ -112,13 +112,13 @@ self.addEventListener("message", (ev: MessageEvent<ToWorker>) => {
   try {
     switch (msg.type) {
       case "init":
-        void init();
+        void init(msg.params);
         break;
       case "samples":
         feed(msg.data);
         break;
       case "reset":
-        mod?._rtlwmbus_init();
+        mod?._rtlwmbus_init(msg.params.decimation, msg.params.simultaneous ? 1 : 0);
         break;
     }
   } catch (err) {

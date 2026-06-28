@@ -45,24 +45,29 @@ static t1_c1_signal_chain_prototype g_process_t1_c1_chain;
 static s1_signal_chain_prototype g_process_s1_chain;
 static float (*g_disc_t1_c1)(float i, float q);
 static float (*g_disc_s1)(float i, float q);
+static int g_fs_kHz;
 
 EMSCRIPTEN_KEEPALIVE
-void rtlwmbus_init(void)
+void rtlwmbus_init(int decimation_rate, int simultaneous)
 {
-    /* Defaults match the rtl-wmbus CLI with no options: decimation 2 (=> 1.6
-     * Msps from 800 kHz base), accurate atan, both T1/C1 and S1 enabled, run
-     * length + time2 algorithms enabled, no S1+T1/C1 simultaneous mode. */
-    opts_decimation_rate = 2u;
+    /* Options otherwise match the rtl-wmbus CLI with no flags: accurate atan,
+     * both T1/C1 and S1 enabled, run length + time2 algorithms enabled.
+     *
+     * decimation_rate maps to the CLI -d flag: sample rate = decimation * 800
+     * kHz (2 => 1.6 Msps, 3 => 2.4 Msps). simultaneous maps to the -s flag,
+     * which frequency-shifts so S1 and T1/C1 are received together with the SDR
+     * tuned to 868.625 MHz. */
+    opts_decimation_rate = decimation_rate > 0 ? (unsigned)decimation_rate : 2u;
     opts_accurate_atan = 1;
     opts_run_length_algorithm_enabled = 1;
     opts_time2_algorithm_enabled = TIME2_ALGORITHM_ENABLED;
-    opts_s1_t1_c1_simultaneously = 0;
+    opts_s1_t1_c1_simultaneously = simultaneous ? 1 : 0;
     opts_remove_dc_offset = 0;
     opts_show_used_algorithm = 0;
     opts_t1_c1_processing_enabled = 1;
     opts_s1_processing_enabled = 1;
 
-    const int fs_kHz = opts_decimation_rate * 800;
+    g_fs_kHz = opts_decimation_rate * 800;
 
     time2_algorithm_t1_c1_reset(&g_t2_algo_t1_c1);
     time2_algorithm_s1_reset(&g_t2_algo_s1);
@@ -76,7 +81,7 @@ void rtlwmbus_init(void)
 
     g_decimation_rate_index = 0;
 
-    setup_lookup_tables_for_frequency_translation(fs_kHz);
+    setup_lookup_tables_for_frequency_translation(g_fs_kHz);
 }
 
 /*
@@ -92,11 +97,24 @@ void rtlwmbus_feed(const uint8_t *samples, int len)
         const float i_unfilt = ((float)(samples[k])     - 127.5f);
         const float q_unfilt = ((float)(samples[k + 1]) - 127.5f);
 
-        const float i_t1_c1 = moving_average_t1_c1(i_unfilt, 0);
-        const float q_t1_c1 = moving_average_t1_c1(q_unfilt, 1);
+        float i_t1_c1_unfilt = i_unfilt;
+        float q_t1_c1_unfilt = q_unfilt;
+        float i_s1_unfilt = i_unfilt;
+        float q_s1_unfilt = q_unfilt;
 
-        const float i_s1 = moving_average_s1(i_unfilt, 0);
-        const float q_s1 = moving_average_s1(q_unfilt, 1);
+        /* In simultaneous mode the SDR is tuned to 868.625 MHz and we shift
+         * T1/C1 and S1 to their respective baseband positions. */
+        if (opts_s1_t1_c1_simultaneously)
+        {
+            shift_freq_plus_minus325(&i_t1_c1_unfilt, &q_t1_c1_unfilt,
+                                     &i_s1_unfilt, &q_s1_unfilt, g_fs_kHz);
+        }
+
+        const float i_t1_c1 = moving_average_t1_c1(i_t1_c1_unfilt, 0);
+        const float q_t1_c1 = moving_average_t1_c1(q_t1_c1_unfilt, 1);
+
+        const float i_s1 = moving_average_s1(i_s1_unfilt, 0);
+        const float q_s1 = moving_average_s1(q_s1_unfilt, 1);
 
         if (++g_decimation_rate_index < opts_decimation_rate) continue;
         g_decimation_rate_index = 0;

@@ -26,14 +26,28 @@ npm install
 npm run dev      # http://localhost:5173  (localhost satisfies WebUSB)
 ```
 
-Open the URL in **Chrome / Edge / Opera**, plug in your RTL-SDR, and click
-**Connect RTL-SDR**. WebUSB will prompt you to choose the device (this requires a
-user gesture, so it must be triggered by the button). Once connected the app
-streams IQ samples and populates two live tables:
+Open the URL in **Chrome / Edge / Opera**, pick a **band / mode** from the
+dropdown (it shows the countries where each band is typical as flags), plug in
+your RTL-SDR, and click **Connect RTL-SDR**. WebUSB will prompt you to choose the
+device (this requires a user gesture, so it must be triggered by the button).
+Once connected the app streams IQ samples and populates two live tables:
 
 - **Meters** — one row per meter id, with media, driver, decoded reading, and a
   status badge (`decoded`, `decrypted (0x0)`, `recognized`, `encrypted`).
 - **Telegrams** — the raw demodulated frames (mode, CRC, RSSI, hex).
+
+### Bands / modes
+
+| Preset | Tuning | Typical in |
+|--------|--------|-----------|
+| **868.950 MHz — T1 / C1** (default) | 1.6 Msps | most of Europe (DE, AT, NL, BE, CH, CZ, PL, DK, SE, NO, FI, UK) |
+| **868.300 MHz — S1** | 1.6 Msps | Europe (stationary deployments) |
+| **868.625 MHz — S1 + T1 + C1** | 2.4 Msps | Europe (catches all 868 modes at once, via rtl-wmbus `-s`) |
+| 169.400 MHz — N / Wize | — | France, Italy (gas), Spain, Portugal — *demod not supported yet* |
+| 433.820 MHz — F | — | markets where 868 MHz is unavailable — *demod not supported yet* |
+
+Only the 868 MHz modes (S/T/C) are demodulated; the 169 MHz and 433 MHz presets
+are listed for reference and are disabled in the UI.
 
 ## Requirements
 
