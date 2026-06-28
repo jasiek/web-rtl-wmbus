@@ -38,16 +38,25 @@ Once connected the app streams IQ samples and populates two live tables:
 
 ### Bands / modes
 
-| Preset | Tuning | Typical in |
-|--------|--------|-----------|
-| **868.950 MHz — T1 / C1** (default) | 1.6 Msps | most of Europe (DE, AT, NL, BE, CH, CZ, PL, DK, SE, NO, FI, UK) |
-| **868.300 MHz — S1** | 1.6 Msps | Europe (stationary deployments) |
-| **868.625 MHz — S1 + T1 + C1** | 2.4 Msps | Europe (catches all 868 modes at once, via rtl-wmbus `-s`) |
-| 169.400 MHz — N / Wize | — | France, Italy (gas), Spain, Portugal — *demod not supported yet* |
-| 433.820 MHz — F | — | markets where 868 MHz is unavailable — *demod not supported yet* |
+| Preset | Tuning | Demodulator | Typical in |
+|--------|--------|-------------|-----------|
+| **868.950 MHz — T1 / C1** (default) | 1.6 Msps | rtl-wmbus (WASM) | most of Europe (DE, AT, NL, BE, CH, CZ, PL, DK, SE, NO, FI, UK) |
+| **868.300 MHz — S1** | 1.6 Msps | rtl-wmbus (WASM) | Europe (stationary deployments) |
+| **868.625 MHz — S1 + T1 + C1** | 2.4 Msps | rtl-wmbus (WASM, `-s`) | Europe (catches all 868 modes at once) |
+| **169.4375 MHz — N / Wize** | 0.3 Msps | native TS (`src/dsp/nmode.ts`) | France, Italy (gas), Spain, Portugal — *experimental* |
+| 433.820 MHz — F | — | — | markets where 868 MHz is unavailable — *not supported yet* |
 
-Only the 868 MHz modes (S/T/C) are demodulated; the 169 MHz and 433 MHz presets
-are listed for reference and are disabled in the UI.
+The 868 MHz modes use the rtl-wmbus WASM demodulator. **Mode N (169 MHz)** uses
+a pure-TypeScript narrowband 2-GFSK demodulator (`src/dsp/nmode.ts`): it
+channelizes the six 12.5 kHz uplink channels, FM-discriminates, recovers the bit
+clock, finds the sync word, and deframes Format A (CRC-checked) into telegrams
+that wmbusmeters decodes like any other mode.
+
+> **N-mode is experimental.** The DSP chain is validated by a synthetic
+> round-trip test (`native/test-nmode.mjs`), but the PHY constants (sync word,
+> polarity, bit order) in `src/dsp/nmode.ts` have **not** been confirmed against
+> real 169 MHz meters — that needs a real capture. They are centralized and the
+> demod tries both polarities, so closing the gap is a small change.
 
 ## Requirements
 
@@ -93,7 +102,10 @@ src/
   main.ts               UI wiring, SDR ↔ worker glue
   sdr/device.ts         WebUSB RTL-SDR wrapper (tune 868.95 MHz @ 1.6 Msps)
   worker/dsp.ts         Web Worker: demod + decode queue
+  worker/demodulator.ts band → demodulator (rtl-wmbus WASM or TS mode-N)
   worker/decoder.ts     wmbusmeters decode (NOKEY → 0x0 strategy)
+  dsp/nmode.ts          mode-N (169 MHz) narrowband GFSK demodulator
+  dsp/wmbus-frame.ts    EN 13757 CRC + Format A deframing
   telegram.ts, meter.ts parsing of rtl-wmbus lines / wmbusmeters JSON
   ui/                   live meter + telegram tables
   wasm/                 committed WASM artifacts (.js + .wasm + .d.ts)
@@ -124,6 +136,8 @@ npm run test:wasm
 - `native/test-wmbusmeters.mjs` — asserts plaintext decode, AES decrypt with a
   real key, and graceful failure of the `0x0` attempt.
 - `native/test-pipeline.mjs` — full chain: samples → telegrams → meters.
+- `native/test-nmode.mjs` — modulates a telegram into mode-N GFSK IQ and
+  demodulates it back, then decodes it via wmbusmeters (run with `npm run test:dsp`).
 
 ## Rebuilding the WASM modules
 

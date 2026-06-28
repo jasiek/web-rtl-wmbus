@@ -9,6 +9,13 @@
  * rtl-wmbus only demodulates the 868 MHz modes (S/T/C); 169 MHz (N/Wize) and
  * 433 MHz (F) are listed for reference but marked unsupported.
  */
+import {
+  N_CENTER_HZ,
+  N_SAMPLE_RATE,
+  N_CHANNEL_OFFSETS_HZ,
+} from "./dsp/nmode.ts";
+import type { DemodParams } from "./worker/protocol.ts";
+
 export type Country = { flag: string; name: string };
 
 export type WmbusPreset = {
@@ -18,11 +25,9 @@ export type WmbusPreset = {
   mode: string;
   centerHz: number;
   sampleRate: number;
-  /** rtl-wmbus -d (sample rate = decimation * 800 kHz). */
-  decimation: number;
-  /** rtl-wmbus -s (receive S1 + T1/C1 simultaneously at 868.625 MHz). */
-  simultaneous: boolean;
-  /** Whether the WASM demodulator can decode this band. */
+  /** Demodulator parameters for this band (passed to the DSP worker). */
+  demod: DemodParams;
+  /** Whether a demodulator exists for this band. */
   supported: boolean;
   countries: Country[];
   note?: string;
@@ -57,8 +62,7 @@ export const PRESETS: WmbusPreset[] = [
     mode: "T1 / C1",
     centerHz: 868_950_000,
     sampleRate: 1_600_000,
-    decimation: 2,
-    simultaneous: false,
+    demod: { kind: "wmbus868", decimation: 2, simultaneous: false },
     supported: true,
     countries: EU_868,
   },
@@ -68,8 +72,7 @@ export const PRESETS: WmbusPreset[] = [
     mode: "S1 (stationary)",
     centerHz: 868_300_000,
     sampleRate: 1_600_000,
-    decimation: 2,
-    simultaneous: false,
+    demod: { kind: "wmbus868", decimation: 2, simultaneous: false },
     supported: true,
     countries: EU_868,
   },
@@ -79,22 +82,24 @@ export const PRESETS: WmbusPreset[] = [
     mode: "S1 + T1 + C1 (all 868)",
     centerHz: 868_625_000,
     sampleRate: 2_400_000,
-    decimation: 3,
-    simultaneous: true,
+    demod: { kind: "wmbus868", decimation: 3, simultaneous: true },
     supported: true,
     countries: EU_868,
   },
   {
     id: "n-169400",
-    label: "169.400 MHz — N / Wize",
-    mode: "N-mode (narrowband)",
-    centerHz: 169_400_000,
-    sampleRate: 1_600_000,
-    decimation: 2,
-    simultaneous: false,
-    supported: false,
+    label: "169.4375 MHz — N / Wize",
+    mode: "N-mode (narrowband, 6 channels)",
+    centerHz: N_CENTER_HZ,
+    sampleRate: N_SAMPLE_RATE,
+    demod: {
+      kind: "nmode169",
+      sampleRate: N_SAMPLE_RATE,
+      offsetsHz: N_CHANNEL_OFFSETS_HZ,
+    },
+    supported: true,
     countries: BAND_169,
-    note: "N-mode (169 MHz) demodulation is not supported yet.",
+    note: "N-mode demodulation is experimental: the PHY parameters (sync word, polarity) are not yet confirmed against real 169 MHz meters.",
   },
   {
     id: "f-433820",
@@ -102,8 +107,7 @@ export const PRESETS: WmbusPreset[] = [
     mode: "F-mode",
     centerHz: 433_820_000,
     sampleRate: 1_600_000,
-    decimation: 2,
-    simultaneous: false,
+    demod: { kind: "wmbus868", decimation: 2, simultaneous: false },
     supported: false,
     countries: [{ flag: "🌍", name: "Markets where 868 MHz is unavailable" }],
     note: "F-mode (433 MHz) demodulation is not supported yet.",

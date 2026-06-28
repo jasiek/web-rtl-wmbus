@@ -11,12 +11,15 @@
     "typecheck": "tsc --noEmit",
     "setup:wasm": "bash native/setup.sh",
     "build:wasm": "bash native/build-rtl-wmbus.sh && bash native/build-wmbusmeters.sh",
-    "test:wasm": "node native/test-rtl-wmbus.mjs && node native/test-wmbusmeters.mjs && node native/test-pipeline.mjs"
+    "test:wasm": "node native/test-rtl-wmbus.mjs && node native/test-wmbusmeters.mjs && node native/test-pipeline.mjs",
+    "test:dsp": "tsx native/test-nmode.mjs",
+    "test": "npm run test:wasm && npm run test:dsp"
   },
   "dependencies": {
     "@jtarrio/webrtlsdr": "^0.1.0"
   },
   "devDependencies": {
+    "tsx": "^4.19.0",
     "typescript": "^5.6.3",
     "vite": "^5.4.10"
   }

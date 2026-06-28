@@ -76,7 +76,7 @@ worker.addEventListener("message", (ev: MessageEvent<FromWorker>) => {
   switch (msg.type) {
     case "ready":
       workerReady = true;
-      log("Demodulator (rtl-wmbus WASM) ready.");
+      log("Demodulator ready.");
       break;
     case "telegram":
       telegramTable.add(msg.telegram);
@@ -103,13 +103,7 @@ function toWorker(msg: ToWorker, transfer?: Transferable[]): void {
 }
 
 // Initialize the demodulator up front so it is ready by the time we connect.
-toWorker({
-  type: "init",
-  params: {
-    decimation: DEFAULT_PRESET.decimation,
-    simultaneous: DEFAULT_PRESET.simultaneous,
-  },
-});
+toWorker({ type: "init", params: DEFAULT_PRESET.demod });
 
 // Throughput / signal accounting, sampled once a second.
 let bytesSinceTick = 0;
@@ -170,10 +164,7 @@ async function handleConnect(): Promise<void> {
       `Connected. Tuned to ${(preset.centerHz / 1e6).toFixed(3)} MHz (${preset.mode}) at ${(rate / 1e6).toFixed(3)} Msps.`,
     );
 
-    toWorker({
-      type: "reset",
-      params: { decimation: preset.decimation, simultaneous: preset.simultaneous },
-    });
+    toWorker({ type: "reset", params: preset.demod });
     meterTable.reset();
     telegramTable.reset();
     sdr.start(onSamples);

@@ -1,39 +1,38 @@
 /// <reference lib="webworker" />
 //
-// DSP worker: loads the rtl-wmbus WASM demodulator and runs the continuous
-// sample stream through it, off the main thread. Each demodulated telegram line
-// is parsed and posted back to the main thread.
+// DSP worker: owns the active demodulator (rtl-wmbus WASM for 868 MHz, or the
+// TypeScript mode-N receiver for 169 MHz) and the telegram decode pipeline,
+// off the main thread.
 //
 // WebUSB lives on the main thread (it is unavailable in workers), so the main
 // thread captures cu8 sample blocks and transfers their ArrayBuffers here.
 
-import createRtlWmbus, {
-  type RtlWmbusModule,
-} from "../wasm/rtl_wmbus.js";
-import { parseTelegramLine, type Telegram } from "../telegram.ts";
 import { decodeTelegram } from "./decoder.ts";
+import { createDemodulator, type Demodulator } from "./demodulator.ts";
+import type { Telegram } from "../telegram.ts";
 import type { DemodParams, FromWorker, ToWorker } from "./protocol.ts";
 
-let mod: RtlWmbusModule | undefined;
-let heapPtr = 0;
-let heapCapacity = 0;
+let demod: Demodulator | undefined;
 
 function post(msg: FromWorker): void {
   (self as DedicatedWorkerGlobalScope).postMessage(msg);
 }
 
-// Telegram decode queue. Demodulation is synchronous and bursty (the same
-// telegram is often reported twice by two algorithms), while decoding is async
-// and relatively heavy. We dedupe recent telegrams and decode them one at a
-// time so the wmbusmeters instances don't pile up.
+// Telegram decode queue. Demodulation is bursty (the same telegram is often
+// reported more than once), while decoding is async and relatively heavy. We
+// dedupe recent telegrams and decode them one at a time.
 const decodeQueue: Telegram[] = [];
 let decoding = false;
 const recentHex = new Map<string, number>(); // hex -> timestamp
 const DEDUPE_MS = 3000;
 
+function handleTelegram(t: Telegram): void {
+  post({ type: "telegram", telegram: t });
+  if (t.crcOk) enqueueForDecode(t);
+}
+
 function enqueueForDecode(t: Telegram): void {
   const now = Date.now();
-  // Drop telegrams we decoded very recently (duplicate algorithm output).
   for (const [hex, ts] of recentHex) {
     if (now - ts > DEDUPE_MS) recentHex.delete(hex);
   }
@@ -72,39 +71,13 @@ async function drainQueue(): Promise<void> {
   }
 }
 
-async function init(params: DemodParams): Promise<void> {
-  mod = await createRtlWmbus({
-    print: (line) => {
-      const telegram = parseTelegramLine(line);
-      if (telegram) {
-        post({ type: "telegram", telegram });
-        // Only attempt to decode telegrams that passed the CRC check.
-        if (telegram.crcOk) enqueueForDecode(telegram);
-      }
-    },
-    printErr: (line) => post({ type: "stderr", line }),
-  });
-  mod._rtlwmbus_init(params.decimation, params.simultaneous ? 1 : 0);
+async function setup(params: DemodParams): Promise<void> {
+  demod = await createDemodulator(
+    params,
+    handleTelegram,
+    (line) => post({ type: "stderr", line }),
+  );
   post({ type: "ready" });
-}
-
-/** Ensures the scratch buffer in WASM memory is at least `size` bytes. */
-function ensureHeap(size: number): number {
-  if (!mod) throw new Error("WASM module not initialized");
-  if (size > heapCapacity) {
-    if (heapPtr) mod._free(heapPtr);
-    heapPtr = mod._malloc(size);
-    heapCapacity = size;
-  }
-  return heapPtr;
-}
-
-function feed(data: ArrayBuffer): void {
-  if (!mod) return;
-  const bytes = new Uint8Array(data);
-  const ptr = ensureHeap(bytes.length);
-  mod.HEAPU8.set(bytes, ptr);
-  mod._rtlwmbus_feed(ptr, bytes.length);
 }
 
 self.addEventListener("message", (ev: MessageEvent<ToWorker>) => {
@@ -112,16 +85,17 @@ self.addEventListener("message", (ev: MessageEvent<ToWorker>) => {
   try {
     switch (msg.type) {
       case "init":
-        void init(msg.params);
+      case "reset":
+        void setup(msg.params);
         break;
       case "samples":
-        feed(msg.data);
-        break;
-      case "reset":
-        mod?._rtlwmbus_init(msg.params.decimation, msg.params.simultaneous ? 1 : 0);
+        demod?.feed(msg.data);
         break;
     }
   } catch (err) {
-    post({ type: "error", message: err instanceof Error ? err.message : String(err) });
+    post({
+      type: "error",
+      message: err instanceof Error ? err.message : String(err),
+    });
   }
 });
