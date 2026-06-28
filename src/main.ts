@@ -53,9 +53,10 @@ const worker = new Worker(new URL("./worker/dsp.ts", import.meta.url), {
 });
 let workerReady = false;
 
-// Dev-only: expose the worker so the headless smoke test can feed it sample IQ
-// data directly (the WebUSB path needs real hardware).
-if (import.meta.env.DEV) {
+// Expose the worker in dev, or in any build when the page is loaded with the
+// `#debug` hash, so a headless smoke test can feed it sample IQ data directly
+// (the live WebUSB path needs real hardware).
+if (import.meta.env.DEV || location.hash === "#debug") {
   (globalThis as unknown as { __dspWorker?: Worker }).__dspWorker = worker;
 }
 
