@@ -17,6 +17,8 @@ export type Telegram = {
   serial: string;
   /** Telegram payload as a lowercase hex string, no leading "0x". */
   hex: string;
+  /** RF frequency this telegram was received on, in Hz (set by the demodulator). */
+  frequencyHz?: number;
 };
 
 /**

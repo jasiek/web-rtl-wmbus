@@ -292,8 +292,10 @@ export class NModeReceiver {
     onTelegram: (telegram: Telegram) => void,
     sampleRate = N_SAMPLE_RATE,
     offsets = N_CHANNEL_OFFSETS_HZ,
+    centerHz = N_CENTER_HZ,
   ) {
-    const emit = (cooked: Uint8Array) => {
+    // Each channel reports the frequency it actually demodulated on.
+    const emitFor = (frequencyHz: number) => (cooked: Uint8Array) => {
       onTelegram({
         mode: "N",
         crcOk: true, // only emitted after all block CRCs pass
@@ -303,10 +305,11 @@ export class NModeReceiver {
         currentRssi: 0,
         serial: linkLayerId(cooked),
         hex: toHex(cooked),
+        frequencyHz,
       });
     };
     this.channels = offsets.map(
-      (off) => new ChannelDemod(off, sampleRate, emit),
+      (off) => new ChannelDemod(off, sampleRate, emitFor(centerHz + off)),
     );
   }
 

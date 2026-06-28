@@ -51,7 +51,7 @@ export class MeterTable {
     this.counter.textContent = `${this.rows.size} meter(s)`;
     if (this.rows.size === 0) {
       this.tbody.innerHTML =
-        '<tr class="empty-row"><td colspan="7">No meters decoded yet…</td></tr>';
+        '<tr class="empty-row"><td colspan="8">No meters decoded yet…</td></tr>';
       return;
     }
     const sorted = [...this.rows.values()].sort(
@@ -73,12 +73,19 @@ export class MeterTable {
     cell(tr, row.id, "mono");
     cell(tr, reading?.media ?? "—");
     cell(tr, reading?.meter ?? "—");
+    cell(tr, formatFreq(result.frequencyHz), "mono");
     cell(tr, status.text, status.cls);
     cell(tr, value, "mono");
     cell(tr, String(row.updates));
     cell(tr, seen, "muted");
     return tr;
   }
+}
+
+/** Formats a reception frequency in MHz (e.g. "868.950 MHz"). */
+function formatFreq(hz?: number): string {
+  if (!hz) return "—";
+  return `${(hz / 1e6).toFixed(3)} MHz`;
 }
 
 function cell(tr: HTMLTableRowElement, text: string, cls?: string): void {

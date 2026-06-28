@@ -7,6 +7,8 @@ export type DemodParams =
   | {
       /** 868 MHz S/T/C modes via the rtl-wmbus WASM demodulator. */
       kind: "wmbus868";
+      /** Tuned center frequency, in Hz (used to report reception frequency). */
+      centerHz: number;
       /** rtl-wmbus -d (sample rate = decimation * 800 kHz). */
       decimation: number;
       /** rtl-wmbus -s (receive S1 + T1/C1 together at 868.625 MHz). */
@@ -15,6 +17,8 @@ export type DemodParams =
   | {
       /** 169 MHz mode N via the TypeScript narrowband demodulator. */
       kind: "nmode169";
+      /** Tuned center frequency, in Hz (channel = center + offset). */
+      centerHz: number;
       /** SDR sample rate the channelizer expects. */
       sampleRate: number;
       /** Channel offsets from the tuned center, in Hz. */
@@ -31,6 +35,8 @@ export type ToWorker =
 export type MeterResult = {
   serial: string;
   mode: string;
+  /** RF frequency the telegram was received on, in Hz. */
+  frequencyHz?: number;
   status: DecodeStatus;
   reading: MeterReading | null;
 };

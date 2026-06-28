@@ -25,15 +25,29 @@ export async function createDemodulator(
   onStderr: (line: string) => void,
 ): Promise<Demodulator> {
   if (params.kind === "nmode169") {
-    const rx = new NModeReceiver(onTelegram, params.sampleRate, params.offsetsHz);
+    const rx = new NModeReceiver(
+      onTelegram,
+      params.sampleRate,
+      params.offsetsHz,
+      params.centerHz,
+    );
     return { feed: (data) => rx.feed(data) };
   }
 
-  // 868 MHz: rtl-wmbus WASM.
+  // 868 MHz: rtl-wmbus WASM. The reception frequency follows from the mode: in
+  // simultaneous mode S1 sits at 868.30 MHz and T1/C1 at 868.95 MHz; otherwise
+  // everything arrives at the single tuned center.
+  const freqForMode = (mode: string): number => {
+    if (!params.simultaneous) return params.centerHz;
+    return mode === "S1" ? 868_300_000 : 868_950_000;
+  };
   const mod = await createRtlWmbus({
     print: (line) => {
       const t = parseTelegramLine(line);
-      if (t) onTelegram(t);
+      if (t) {
+        t.frequencyHz = freqForMode(t.mode);
+        onTelegram(t);
+      }
     },
     printErr: onStderr,
   });

@@ -55,6 +55,7 @@ async function drainQueue(): Promise<void> {
           result: {
             serial: t.serial,
             mode: t.mode,
+            frequencyHz: t.frequencyHz,
             status: result.status,
             reading: result.reading,
           },

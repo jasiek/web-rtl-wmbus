@@ -32,8 +32,10 @@ your RTL-SDR, and click **Connect RTL-SDR**. WebUSB will prompt you to choose th
 device (this requires a user gesture, so it must be triggered by the button).
 Once connected the app streams IQ samples and populates two live tables:
 
-- **Meters** — one row per meter id, with media, driver, decoded reading, and a
-  status badge (`decoded`, `decrypted (0x0)`, `recognized`, `encrypted`).
+- **Meters** — one row per meter id, with media, driver, the **RF frequency**
+  it was received on (e.g. 868.950 MHz, or the specific 169 MHz N-mode channel),
+  decoded reading, and a status badge (`decoded`, `decrypted (0x0)`,
+  `recognized`, `encrypted`).
 - **Telegrams** — the raw demodulated frames (mode, CRC, RSSI, hex).
 
 ### Bands / modes
